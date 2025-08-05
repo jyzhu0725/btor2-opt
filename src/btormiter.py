@@ -25,8 +25,8 @@ import sys
 def create_lec_assertion(out1: Instruction, out2: Instruction, base_lid: int) -> list[Instruction]:
     op1 = out1.operands[0]
     op2 = out2.operands[0]
-    sort = Sort(base_lid, 1)
-    neq = Neq(base_lid + 1, [sort, op1, op2])
+    sort = Sort(base_lid, "bitvec", 1)
+    neq = Neq(base_lid + 1, sort, op1, op2)
     bad = Bad(base_lid + 2, neq)
     return [sort, neq, bad]
 

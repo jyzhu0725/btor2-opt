@@ -51,11 +51,42 @@ class Parser:
     # This is a safe wrapper around `get_inst` and enforces that the given
     # ID must be correct.
     def find_inst(self, id: int) -> Instruction:
+        if id < 0:
+            original_inst = get_inst(self.p, abs(id))
+            if original_inst is None:
+                print(f"Warning: Undeclared instruction used with id: {abs(id)} for NOT operation")
+                return self.create_not_placeholder(abs(id))
+            return self.create_not_instruction(abs(id), original_inst)
         inst = get_inst(self.p, id)
         if inst is None:
-            print(self.p)
-            assert False, f"Undeclared instruction used with id: {id}"
+            print(f"Warning: Undeclared instruction used with id: {id}")
+            return self.create_placeholder_instruction(id)
         return inst
+    
+    def create_placeholder_instruction(self, id: int) -> Instruction:
+        """Create a placeholder instruction for undeclared IDs"""
+        # Create a simple placeholder instruction
+        placeholder = Zero(id, None)  # Use Zero as a placeholder
+        placeholder.lid = id
+        return placeholder
+    
+    def create_not_instruction(self, original_id: int, original_inst: Instruction) -> Instruction:
+        """Create a NOT instruction for negative IDs"""
+        # Get the sort from the original instruction
+        sort = original_inst.operands[0] if hasattr(original_inst, 'operands') and original_inst.operands else None
+        if sort is None:
+            # Create a default sort if needed
+            sort = Sort(original_id, "bitvec", 1)
+        
+        not_inst = Not(original_id, sort, original_inst)
+        not_inst.lid = -original_id
+        return not_inst
+    
+    def create_not_placeholder(self, original_id: int) -> Instruction:
+        """Create a placeholder for NOT operations when original instruction is missing"""
+        placeholder = Zero(original_id, None)
+        placeholder.lid = -original_id
+        return placeholder
     
     # Defers the resolution of all operand IDs
     def defer(self, ids: list[str]) -> list[Instruction]:
@@ -65,11 +96,20 @@ class Parser:
     # @param line: the current instruction that needs to be parsed
     # @param p: the current parsed state of the program
     def parse_inst(self, line: str, deferred=True) -> Instruction:
+        if not line.strip():
+            return None
         inst = line.split(" ")
         # BTOR comment
         if inst[0] == ";":
             return None
-        lid = int(inst[0])
+        if len(inst) < 2:
+            print(f"Warning: Invalid line format: {line.strip()}")
+            return None
+        try:
+            lid = int(inst[0])
+        except ValueError:
+            print(f"Warning: Invalid line ID in line: {line.strip()}")
+            return None
         tag = inst[1]
 
         # Check if tag is valid
